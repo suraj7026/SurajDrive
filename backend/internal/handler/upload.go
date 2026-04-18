@@ -1,0 +1,98 @@
+package handler
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"path"
+	"strings"
+	"time"
+
+	"surajdrive/backend/internal/model"
+)
+
+const maxServerSideUpload = 10 << 20
+
+func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	bucket, err := bucketFromRequest(r, h.store)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxServerSideUpload+(1<<20))
+	if err := r.ParseMultipartForm(maxServerSideUpload); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, fmt.Errorf("file exceeds %d MB; use presigned upload instead", maxServerSideUpload>>20))
+			return
+		}
+		writeError(w, http.StatusBadRequest, fmt.Errorf("invalid multipart upload: %w", err))
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("file field missing"))
+		return
+	}
+	defer file.Close()
+
+	fileName := path.Base(header.Filename)
+	if fileName == "." || fileName == "/" || fileName == "" {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("file name is required"))
+		return
+	}
+
+	prefix := r.FormValue("prefix")
+	requestedKey := fileName
+	if strings.TrimSpace(prefix) != "" {
+		requestedKey = path.Join(prefix, fileName)
+	}
+
+	resolvedKey, err := h.store.ResolveAvailableKey(r.Context(), bucket, requestedKey)
+	if err != nil {
+		writeStorageError(w, err)
+		return
+	}
+
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	if err := h.store.PutObject(r.Context(), bucket, resolvedKey, contentType, file, header.Size); err != nil {
+		writeStorageError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]string{"key": resolvedKey})
+}
+
+func (h *FileHandler) PresignUpload(w http.ResponseWriter, r *http.Request) {
+	bucket, err := bucketFromRequest(r, h.store)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("key is required"))
+		return
+	}
+
+	resolvedKey, err := h.store.ResolveAvailableKey(r.Context(), bucket, key)
+	if err != nil {
+		writeStorageError(w, err)
+		return
+	}
+
+	urlValue, err := h.store.PresignedPutURL(r.Context(), bucket, resolvedKey, 15*time.Minute)
+	if err != nil {
+		writeStorageError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, model.PresignResponse{URL: urlValue, Key: resolvedKey, ExpiresIn: "15m"})
+}

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Google_Sans } from "next/font/google";
 import "./globals.css";
 
-const headingFont = Manrope({
+const headingFont = Google_Sans({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const bodyFont = Inter({
+const bodyFont = Google_Sans({
   variable: "--font-body",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

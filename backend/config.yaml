@@ -1,0 +1,24 @@
+server:
+  port: 4001
+  frontend_url: "http://localhost:4000"
+  is_production: false
+  read_timeout_secs: 15
+  write_timeout_secs: 15
+
+google:
+  client_id: "replace-with-google-client-id"
+  client_secret: "replace-with-google-client-secret"
+  redirect_url: "http://localhost:4001/api/auth/google/callback"
+  allowed_domain: ""
+
+jwt:
+  secret: "replace-with-a-strong-random-secret"
+  expiry_hrs: 24
+
+minio:
+  endpoint: "localhost:9000"
+  access_key: "replace-with-minio-access-key"
+  secret_key: "replace-with-minio-secret-key"
+  bucket_prefix: "drive"
+  use_ssl: false
+  region: "us-east-1"

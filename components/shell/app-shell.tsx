@@ -83,6 +83,28 @@ export function AppShell({
               SDrive stays quiet, precise, and easy to scan.
             </p>
           </div>
+
+          <div className="mt-4 rounded-[24px] bg-[var(--color-surface-strong)] px-4 py-5 shadow-[0_12px_32px_rgba(26,28,25,0.05)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.26em] text-[var(--color-text-soft)]">Storage</p>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">128 GB of 512 GB used</p>
+              </div>
+              <p className="font-heading text-lg font-semibold text-[var(--color-primary)]">25%</p>
+            </div>
+
+            <div className="mt-4 h-2.5 rounded-full bg-[var(--color-surface-low)]">
+              <div
+                aria-hidden="true"
+                className="primary-gradient h-2.5 rounded-full"
+                style={{ width: "25%" }}
+              />
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-[var(--color-text-soft)]">
+              384 GB still available for your archive.
+            </p>
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">

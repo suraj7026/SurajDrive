@@ -92,9 +92,12 @@ export function UploadManagerView({ uploadData }: { uploadData: UploadScreenData
                       <p className="text-[15px] font-medium text-[var(--color-text)]">{transfer.fileName}</p>
                       <p className="mt-1 text-sm text-[var(--color-text-soft)]">{transfer.statusLabel}</p>
                     </div>
-                    <button className="rounded-full bg-[var(--color-surface-strong)] p-2 text-[var(--color-text-soft)]">
+                    <span
+                      aria-hidden="true"
+                      className="rounded-full bg-[var(--color-surface-strong)] p-2 text-[var(--color-text-soft)]"
+                    >
                       <X size={16} />
-                    </button>
+                    </span>
                   </div>
 
                   <div className="mt-5 h-2 rounded-full bg-white/70">
