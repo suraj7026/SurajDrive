@@ -381,7 +381,7 @@ func (m *MinIOClient) ResolveAvailableKey(ctx context.Context, bucket, key strin
 func (m *MinIOClient) objectExists(ctx context.Context, bucket, key string) (bool, error) {
 	_, err := m.client.StatObject(ctx, bucket, key, minio.StatObjectOptions{})
 	if err != nil {
-		if isNotFoundError(err) {
+		if isExistenceProbeMiss(err) {
 			return false, nil
 		}
 		return false, err
@@ -389,10 +389,17 @@ func (m *MinIOClient) objectExists(ctx context.Context, bucket, key string) (boo
 	return true, nil
 }
 
-func isNotFoundError(err error) bool {
+// isExistenceProbeMiss reports whether a StatObject error means "object does not exist"
+// for the purposes of an existence probe. Per S3 spec, when the caller lacks both
+// s3:GetObject and s3:ListBucket on a bucket, HEAD on a non-existent key returns
+// 403 AccessDenied instead of 404 NoSuchKey to avoid leaking existence info. The
+// same response can also come from a proxy/CDN intermittently. We treat AccessDenied
+// the same as NoSuchKey here; if the caller actually lacks write permission, the
+// subsequent PutObject / presigned PUT will surface that error clearly.
+func isExistenceProbeMiss(err error) bool {
 	response := minio.ToErrorResponse(err)
 	switch response.Code {
-	case "NoSuchKey", "NoSuchBucket", "NoSuchObject", "NotFound":
+	case "NoSuchKey", "NoSuchBucket", "NoSuchObject", "NotFound", "AccessDenied":
 		return true
 	default:
 		return false
