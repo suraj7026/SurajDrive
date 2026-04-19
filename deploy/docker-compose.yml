@@ -1,0 +1,17 @@
+services:
+  drive-api:
+    image: ghcr.io/suraj7026/drive-api:latest
+    container_name: surajdrive-backend
+    pull_policy: always
+    env_file: .env
+    ports:
+      - "4001:4001"
+    environment:
+      - SERVER_PORT=4001
+      - SERVER_FRONTEND_URL=https://drive.sudarshanrajagopalan.one
+      - SERVER_IS_PRODUCTION=true
+      - MINIO_ENDPOINT=172.17.0.1:9000
+      - MINIO_PUBLIC_ENDPOINT=s3.sudarshanrajagopalan.one
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

@@ -1,7 +1,0 @@
-export type CurrentUser = {
-  id: string;
-  email: string;
-  name: string;
-  picture: string;
-  bucket: string;
-};
