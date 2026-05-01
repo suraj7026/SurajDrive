@@ -58,6 +58,7 @@ func main() {
 		r.Post("/files/copy", fileHandler.Copy)
 		r.Get("/files/presign/download", fileHandler.PresignDownload)
 		r.Get("/files/presign/upload", fileHandler.PresignUpload)
+		r.Get("/files/preview", fileHandler.Preview)
 		r.Post("/folders", fileHandler.CreateFolder)
 		r.Delete("/folders", fileHandler.DeleteFolder)
 		r.Get("/search", fileHandler.Search)

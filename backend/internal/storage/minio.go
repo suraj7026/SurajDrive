@@ -19,7 +19,12 @@ import (
 	"surajdrive/backend/internal/model"
 )
 
-const maxVersionSuffix = 5
+const (
+	maxVersionSuffix = 5
+	// PreviewsPrefix holds server-generated preview artifacts (e.g. JPEGs
+	// converted from HEIC) and is hidden from user-facing listings.
+	PreviewsPrefix = ".previews/"
+)
 
 var (
 	ErrInvalidPath         = errors.New("invalid object path")
@@ -146,6 +151,10 @@ func (m *MinIOClient) ListObjects(ctx context.Context, bucket, prefix string, of
 			continue
 		}
 
+		if isPreviewArtifact(object.Key) {
+			continue
+		}
+
 		if strings.HasSuffix(object.Key, "/") {
 			addFolder(seenFolders, &folders, object.Key)
 			continue
@@ -193,6 +202,43 @@ func (m *MinIOClient) PutObject(ctx context.Context, bucket, key, contentType st
 
 	_, err = m.client.PutObject(ctx, bucket, normalizedKey, reader, size, minio.PutObjectOptions{ContentType: contentType})
 	return err
+}
+
+// GetObject reads the full contents of an object into memory. Intended for
+// small-to-medium objects (e.g. HEIC source files for preview generation);
+// callers are responsible for keeping object sizes reasonable.
+func (m *MinIOClient) GetObject(ctx context.Context, bucket, key string) ([]byte, error) {
+	normalizedKey, err := normalizeObjectKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	object, err := m.client.GetObject(ctx, bucket, normalizedKey, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer object.Close()
+
+	data, err := io.ReadAll(object)
+	if err != nil {
+		response := minio.ToErrorResponse(err)
+		if response.Code == "NoSuchKey" || response.Code == "NoSuchObject" {
+			return nil, ErrObjectNotFound
+		}
+		return nil, err
+	}
+	return data, nil
+}
+
+// ObjectExists reports whether the given object exists in the bucket.
+// Returns false (with nil error) when the underlying probe indicates the
+// object is missing or inaccessible.
+func (m *MinIOClient) ObjectExists(ctx context.Context, bucket, key string) (bool, error) {
+	normalizedKey, err := normalizeObjectKey(key)
+	if err != nil {
+		return false, err
+	}
+	return m.objectExists(ctx, bucket, normalizedKey)
 }
 
 func (m *MinIOClient) DeleteObject(ctx context.Context, bucket, key string) error {
@@ -337,7 +383,7 @@ func (m *MinIOClient) Search(ctx context.Context, bucket, prefix, query string, 
 		if object.Err != nil {
 			return model.SearchResponse{}, object.Err
 		}
-		if object.Key == "" || strings.HasSuffix(object.Key, "/") || isKeepObject(object.Key) {
+		if object.Key == "" || strings.HasSuffix(object.Key, "/") || isKeepObject(object.Key) || isPreviewArtifact(object.Key) {
 			continue
 		}
 		if strings.Contains(strings.ToLower(object.Key), needle) {
@@ -463,6 +509,10 @@ func cleanPath(value string) string {
 
 func isKeepObject(key string) bool {
 	return strings.HasSuffix(key, ".keep") && path.Base(key) == ".keep"
+}
+
+func isPreviewArtifact(key string) bool {
+	return strings.HasPrefix(key, PreviewsPrefix)
 }
 
 func addFolder(seen map[string]struct{}, folders *[]model.FolderEntry, prefix string) {
